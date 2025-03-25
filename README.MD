@@ -60,37 +60,14 @@ NODE_ENV=development
 ```
 
 ### Redis Configuration
-#### Windows
-Download and install Redis from [Memurai](https://www.memurai.com/) or use [Docker](https://docs.docker.com/docker-for-windows/install/):
+Ensure Redis is running on `localhost:6379`. You can start Redis using:
 ```sh
-$ docker run --name redis -p 6379:6379 -d redis
-```
-
-#### Linux
-Install Redis:
-```sh
-$ sudo apt update && sudo apt install redis -y
-$ sudo systemctl start redis
-```
-Check Redis status:
-```sh
-$ redis-cli ping
-```
-Expected output:
-```sh
-PONG
+$ redis-server
 ```
 
 ### Consul Configuration
-#### Windows
-Download [Consul](https://developer.hashicorp.com/consul/downloads) and extract it. Run Consul in development mode:
+Ensure Consul is running on `localhost:8500`. Start Consul in development mode:
 ```sh
-$ consul agent -dev
-```
-
-#### Linux
-```sh
-$ sudo apt install consul -y
 $ consul agent -dev
 ```
 
@@ -118,10 +95,16 @@ The gateway enforces rate limits per route:
 - **Products:** 500 requests per 15 minutes
 - **Orders:** 300 requests per 15 minutes
 
-To test rate limiting:
+To test rate limiting on Linux/macOS:
 ```sh
 $ for i in {1..110}; do curl -X GET http://localhost:3000/api/users; done
 ```
+
+On Windows (PowerShell):
+```powershell
+1..110 | ForEach-Object { curl.exe -X GET http://localhost:3000/api/users }
+```
+
 After 100 requests, you should see:
 ```json
 { "error": "Too many requests, please try again later." }
