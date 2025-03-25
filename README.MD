@@ -60,14 +60,37 @@ NODE_ENV=development
 ```
 
 ### Redis Configuration
-Ensure Redis is running on `localhost:6379`. You can start Redis using:
+#### Windows
+Download and install Redis from [Memurai](https://www.memurai.com/) or use [Docker](https://docs.docker.com/docker-for-windows/install/):
 ```sh
-$ redis-server
+$ docker run --name redis -p 6379:6379 -d redis
+```
+
+#### Linux
+Install Redis:
+```sh
+$ sudo apt update && sudo apt install redis -y
+$ sudo systemctl start redis
+```
+Check Redis status:
+```sh
+$ redis-cli ping
+```
+Expected output:
+```sh
+PONG
 ```
 
 ### Consul Configuration
-Ensure Consul is running on `localhost:8500`. Start Consul in development mode:
+#### Windows
+Download [Consul](https://developer.hashicorp.com/consul/downloads) and extract it. Run Consul in development mode:
 ```sh
+$ consul agent -dev
+```
+
+#### Linux
+```sh
+$ sudo apt install consul -y
 $ consul agent -dev
 ```
 
