@@ -1,235 +1,180 @@
-# API Gateway with Express, Redis, Consul, and Passport
 
-This API Gateway is built using Express.js and provides secure authentication, service discovery with Consul, caching with Redis, and rate-limiting using express-rate-limit. It proxies requests to backend services dynamically discovered via Consul.
+# API Gateway with Advanced Features
+
+This project implements a scalable API Gateway using Express with advanced security, rate limiting, caching, dynamic routing, and circuit breaking. It also demonstrates service discovery with Consul, request logging with Winston/Morgan, JWT authentication with Passport.js, and a sample setup using Docker and NGINX.
 
 ## Features
-- **JWT Authentication** (using Passport.js)
-- **Rate Limiting** (global and route-specific)
-- **Redis-based Caching** (for GET requests)
-- **Service Discovery** (using Consul)
-- **Session Management** (via Redis)
-- **RBAC (Role-Based Access Control)** middleware
-- **Health Check Endpoint**
 
----
+- **JWT Authentication:**  
+  Uses Passport.js with the JWT strategy to secure API endpoints.
+  
+- **Role-Based Access Control (RBAC):**  
+  Middleware enforces role-based permissions (e.g., `role: "user"` or `role: "admin"`).
 
-## Table of Contents
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Running the API Gateway](#running-the-api-gateway)
-- [Rate Limiting](#rate-limiting)
-- [Service Discovery](#service-discovery)
-- [API Routes](#api-routes)
-- [Testing](#testing)
-- [Error Handling](#error-handling)
-- [Deployment](#deployment)
+- **Rate Limiting:**  
+  Uses `express-rate-limit` to limit requests per route (global and public-specific).
 
----
+- **Response Caching:**  
+  Caches GET responses in Redis for improved performance.
 
-## Installation
+- **Dynamic Routing & Service Discovery:**  
+  Uses Consul for service discovery (with a fallback for dummy microservices during testing) and proxy requests with `http-proxy-middleware`.
 
-### Prerequisites
-Ensure you have the following installed:
-- Node.js (>= 16.x)
-- Redis Server
-- Consul Server
+- **Circuit Breaking & Retry:**  
+  Uses Opossum to implement circuit breaker logic around backend API calls.
 
-### Clone Repository
-```sh
-$ git clone <your-repo-url>
-$ cd api-gateway
+- **Request Logging:**  
+  Uses Winston (with Morgan integration) for structured logging.
+
+- **Docker & NGINX Setup:**  
+  Includes a Dockerfile for containerization and an NGINX configuration for reverse proxy.
+
+## Project Structure
+
+```
+.
+├── app.js                  # Main API Gateway application
+├── auth
+│   └── jwt-strategy.js     # Passport JWT strategy configuration
+├── middleware
+│   ├── cache.js            # Redis caching middleware
+│   └── rbac.js             # Role-Based Access Control middleware
+├── redisClient.js          # Redis client module
+├── package.json
+├── Dockerfile              # Docker configuration
+└── nginx.conf              # NGINX reverse proxy configuration
 ```
 
-### Install Dependencies
-```sh
-$ npm install
-```
+## Setup
 
----
+1. **Environment Variables:**  
+   Create a `.env` file in the project root with at least the following:
 
-## Configuration
+   ```ini
+   PORT=3000
+   SESSION_SECRET=your_secret_key
+   JWT_SECRET=your_secret_key
+   JWT_ISSUER=your_issuer       # Optional: Remove issuer/audience in jwt-strategy.js if not used
+   JWT_AUDIENCE=your_audience   # Optional
+   REDIS_URL=redis://default:B5gysiEe6LRIB8MUJyyKkOKuy8zRRqbC@redis-16915.c15.us-east-1-4.ec2.redns.redis-cloud.com:16915
+   CONSUL_HOST=localhost
+   CONSUL_PORT=8500
+   ```
 
-Create a `.env` file in the project root:
-```env
-PORT=3000
-SESSION_SECRET=your_secret_key
-REDIS_URL=redis://localhost:6379
-CONSUL_HOST=localhost
-CONSUL_PORT=8500
-NODE_ENV=development
-```
+2. **Install Dependencies:**  
+   Run the following command in your project directory:
+   
+   ```bash
+   npm install
+   ```
 
-### Redis Configuration
-Ensure Redis is running on `localhost:6379`. You can start Redis using:
-```sh
-$ redis-server
-```
-
-### Consul Configuration
-Ensure Consul is running on `localhost:8500`. Start Consul in development mode:
-```sh
-$ consul agent -dev
-```
-
----
-
-## Running the API Gateway
-
-Start the gateway server:
-```sh
-$ npm start
-```
-It should display:
-```
-API Gateway running on port 3000
-Consul client initialized successfully
-```
-
----
-
-## Rate Limiting
-The gateway enforces rate limits per route:
-- **Global:** 100 requests per 15 minutes per IP
-- **Authentication:** 50 requests per hour
-- **Users:** 200 requests per 15 minutes
-- **Products:** 500 requests per 15 minutes
-- **Orders:** 300 requests per 15 minutes
-
-To test rate limiting on Linux/macOS:
-```sh
-$ for i in {1..110}; do curl -X GET http://localhost:3000/api/users; done
-```
-
-On Windows (PowerShell):
-```powershell
-1..110 | ForEach-Object { curl.exe -X GET http://localhost:3000/api/users }
-```
-
-After 100 requests, you should see:
-```json
-{ "error": "Too many requests, please try again later." }
-```
-
----
-
-## Service Discovery
-The API Gateway dynamically discovers backend services via Consul. To register a service in Consul:
-```sh
-$ consul services register -name=users -address=127.0.0.1 -port=4001
-```
-To list all registered services:
-```sh
-$ consul catalog services
-```
-
----
-
-## API Routes
-### 1. Authentication
-- `POST /api/auth/login`
-- `POST /api/auth/register`
-- `POST /api/auth/logout`
-
-### 2. User Management
-- `GET /api/users`
-- `POST /api/users`
-
-### 3. Product Management
-- `GET /api/products`
-- `POST /api/products`
-
-### 4. Orders
-- `GET /api/orders`
-- `POST /api/orders`
-
-### Proxy Requests
-All requests are dynamically proxied:
-```sh
-$ curl -X GET http://localhost:3000/api/products
-```
-This forwards the request to the `products` service discovered via Consul.
-
----
+3. **Redis Client Setup:**  
+   The Redis client is configured in `redisClient.js`:
+   
+   ```js
+   // redisClient.js
+   const { createClient } = require('redis');
+   const redisClient = createClient({ 
+     url: process.env.REDIS_URL || 'redis://localhost:6379'
+   });
+   redisClient.on('error', (err) => console.error('Redis Client Error:', err));
+   redisClient.connect().catch(console.error);
+   module.exports = redisClient;
+   ```
 
 ## Testing
-### 1. Checking Redis Connection
-```sh
-$ redis-cli ping
-```
-Expected output:
-```sh
-PONG
-```
 
-### 2. Checking Consul Services
-```sh
-$ consul catalog services
+### Step 1: Run the API Gateway
+
+Open your terminal and run:
+
+```powershell
+node app.js
 ```
 
-### 3. Testing Authentication
-```sh
-$ curl -X POST http://localhost:3000/api/auth/login -d '{"username":"test", "password":"test"}' -H "Content-Type: application/json"
+You should see logs indicating that:
+- Consul client is initialized.
+- Dummy User Service is running on port 5001.
+- Dummy Order Service is running on port 5002.
+- API Gateway is running on port 3000.
+
+### Step 2: Test Rate Limiting
+
+Use PowerShell to simulate multiple requests to a public endpoint:
+
+```powershell
+1..105 | ForEach-Object { Invoke-WebRequest -Uri "http://localhost:3000/test/public" -UseBasicParsing | Select-Object -ExpandProperty Content }
 ```
 
-### 4. Testing Caching (GET Requests)
-Run the same GET request twice and compare response times:
-```sh
-$ curl -X GET http://localhost:3000/api/products
+After a certain number of requests, you should see an error message indicating that too many requests have been made.
+
+*Screenshot for reference:*  
+[https://prnt.sc/nG6jVlC_aZ1X](https://prnt.sc/nG6jVlC_aZ1X)
+
+### Step 3: NGINX Server Setup
+
+Create an `nginx.conf` file with the following content:
+
+```nginx
+server {
+    listen 80;
+    location / {
+        proxy_pass http://gateway:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
 ```
-The second request should be faster as it is served from Redis.
 
----
+This configuration forwards traffic from port 80 to the API Gateway running on port 3000.
 
-## Error Handling
-All errors return JSON responses. Example:
+### Step 4: Dockerfile
+
+Create a `Dockerfile` in the project root:
+
+```dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+This Dockerfile builds your API Gateway image.
+
+### Step 5: Setup of Redis Client
+
+Ensure the `redisClient.js` file is properly set up (as shown above) to connect to your Redis server.
+
+### Step 6: JWT Token Testing
+
+Generate a JWT token on the terminal using the command below:
+
+```powershell
+node -e "console.log(require('jsonwebtoken').sign({ id: 1, username: 'testuser', role: 'user' }, 'your_secret_key', { expiresIn: '1h' }))"
+```
+
+Copy the generated token, then use it to call the service:
+
+```powershell
+curl.exe -H "Authorization: Bearer <your_generated_token>" http://localhost:3000/api/user-service/profile
+```
+
+Replace `<your_generated_token>` with your actual token. If the token contains the role `user` and your RBAC middleware permits access, you should receive a response similar to:
+
 ```json
-{ "error": "Service unavailable" }
-```
-If a backend service is down, the gateway automatically returns a `503 Service Unavailable` response.
-
----
-
-## Deployment
-Use Docker for deployment:
-
-### 1. Build Docker Image
-```sh
-$ docker build -t api-gateway .
+{"user":"John Doe","email":"john@example.com"}
 ```
 
-### 2. Run Container
-```sh
-$ docker run -p 3000:3000 --env-file .env api-gateway
-```
-
-### 3. Deploy with Docker Compose
-Create `docker-compose.yml`:
-```yaml
-version: '3.8'
-services:
-  gateway:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - CONSUL_HOST=consul
-    depends_on:
-      - redis
-      - consul
-  redis:
-    image: redis:alpine
-  consul:
-    image: consul:latest
-    command: "agent -dev"
-```
-Start all services:
-```sh
-$ docker-compose up -d
-```
-
----
+**Note:**  
+The RBAC middleware checks the token’s role. If the token does not include the proper role (e.g., `role:user`), the service will block access and return an error.
 
 ## Conclusion
-This API Gateway efficiently routes, authenticates, and caches API requests while leveraging service discovery through Consul and Redis for performance optimization.
 
+This API Gateway setup demonstrates how to secure microservices using JWT authentication, rate limiting, Redis caching, Consul-based service discovery, circuit breaking, and proper logging. The provided NGINX and Docker configurations make it easier to deploy in production.
