@@ -1,0 +1,40 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+
+# Logs and temporary files
+logs/
+*.log
+log/
+*.pid
+*.seed
+*.csv
+
+# Ignore IDE/editor settings
+.vscode/
+.idea/
+*.sublime-workspace
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Build and cache files
+dist/
+.cache/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Ignore package lock if not needed
+package-lock.json
+
+# Misc
+coverage/
+*.bak
+*.swp

@@ -1,0 +1,34 @@
+services:
+
+  consul:
+    image: consul:latest
+    ports:
+      - "8500:8500"
+
+  user-service:
+    build: ./user-service  # <-- Add this line (or specify an image)
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  api-gateway:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your_jwt_secret
+      - USER_SERVICE_URL=http://user-service:3001
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+    depends_on:
+      - redis
+      - user-service  # Ensure API Gateway waits for user-service to start
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
